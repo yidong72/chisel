@@ -1,0 +1,3 @@
+[console_scripts]
+ch = chisel.cli:main
+chisel = chisel.cli:main
