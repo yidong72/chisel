@@ -1,0 +1,211 @@
+---
+description: Task management with Chisel CLI - use when user asks about tasks, work tracking, what to work on, or needs help organizing work
+globs:
+alwaysApply: false
+---
+
+# Chisel Task Management
+
+Use `chisel` CLI for task management. **Always use `--json` flag** for machine-readable output.
+
+## When to Use
+
+- User asks "what should I work on?" → `chisel ready --json`
+- User wants to track new work → `chisel create "title" --json`
+- User finished a task → `chisel close ID --reason "..." --json`
+- User has a large feature → Create epic + `chisel decompose`
+- Something is blocked → `chisel dep add`
+- User asks about task status → `chisel show ID --json` or `chisel list --json`
+
+## Command Reference
+
+### Finding Work
+
+```bash
+# Get unblocked tasks sorted by priority (most important command)
+chisel ready --json
+
+# List tasks with filters
+chisel list --status open --json
+chisel list --priority 1 --json
+chisel list --type bug --json
+```
+
+### Creating Tasks
+
+```bash
+# Basic task
+chisel create "Fix login bug" --json
+
+# With options
+chisel create "Implement OAuth" \
+  -t task \
+  -p 1 \
+  -d "Add Google and GitHub OAuth" \
+  --points 5 \
+  --json
+```
+
+**Options:**
+- `-t, --type`: task (default), epic, bug, spike, chore
+- `-p, --priority`: 0 (critical), 1 (high), 2 (medium/default), 3 (low), 4 (backlog)
+- `-d, --description`: Detailed description
+- `--points`: Story points estimate
+- `--labels`: Comma-separated labels
+- `--parent`: Parent task ID for subtasks
+
+### Updating Tasks
+
+```bash
+# Start working
+chisel update ID --status in_progress --json
+
+# Change priority
+chisel update ID --priority 0 --json
+
+# Mark blocked
+chisel update ID --status blocked --json
+```
+
+**Statuses:** open, in_progress, blocked, review, done, cancelled
+
+### Completing Tasks
+
+```bash
+# Always include a reason
+chisel close ID --reason "Implemented feature with tests" --json
+
+# Reopen if needed
+chisel reopen ID --json
+```
+
+### Breaking Down Large Tasks
+
+For tasks >8 story points:
+
+```bash
+# Create epic
+chisel create "User Dashboard" -t epic -p 1 --json
+
+# Decompose into subtasks
+chisel decompose ch-abc123 \
+  "Design layout" \
+  "Build components" \
+  "Write tests" \
+  --points 2,5,3 \
+  --json
+
+# View hierarchy
+chisel tree ch-abc123 --json
+```
+
+### Managing Dependencies
+
+```bash
+# B is blocked by A (B cannot start until A done)
+chisel dep add ch-taskB --blocked-by ch-taskA --json
+
+# Remove dependency
+chisel dep remove ch-taskB ch-taskA --json
+
+# See blocked tasks
+chisel blocked --json
+
+# See dependencies for task
+chisel dep list ch-taskB --json
+```
+
+### Task Details
+
+```bash
+chisel show ch-abc123 --json
+```
+
+## JSON Response Format
+
+### Task Operation
+```json
+{
+  "task": {
+    "id": "ch-abc123",
+    "title": "Fix login bug",
+    "status": "open",
+    "priority": 1,
+    "task_type": "bug",
+    "story_points": 3
+  },
+  "message": "Created task ch-abc123"
+}
+```
+
+### Task List
+```json
+{
+  "tasks": [
+    {"id": "ch-abc123", "title": "Task 1", "priority": 1, ...},
+    {"id": "ch-def456", "title": "Task 2", "priority": 2, ...}
+  ]
+}
+```
+
+### Error
+```json
+{
+  "error": "Task ch-xyz not found"
+}
+```
+
+## Standard Workflow
+
+### 1. Starting a Session
+```bash
+chisel ready --json  # Find what to work on
+```
+
+### 2. Beginning a Task
+```bash
+chisel update ch-abc123 --status in_progress --json
+chisel show ch-abc123 --json  # Get full details
+```
+
+### 3. Completing a Task
+```bash
+chisel close ch-abc123 --reason "Description of what was done" --json
+chisel ready --json  # Find next task
+```
+
+### 4. When Blocked
+```bash
+chisel dep add ch-current --blocked-by ch-blocker --json
+chisel update ch-current --status blocked --json
+chisel ready --json  # Work on something else
+```
+
+## Priority Guide
+
+| Priority | Value | When to Use |
+|----------|-------|-------------|
+| Critical | 0 | Production down, security issues |
+| High | 1 | Must do today |
+| Medium | 2 | This week (default) |
+| Low | 3 | When time permits |
+| Backlog | 4 | Future consideration |
+
+## Task Types
+
+| Type | When to Use |
+|------|-------------|
+| task | Standard work item (default) |
+| epic | Large feature to be decomposed |
+| bug | Defect to fix |
+| spike | Research/investigation |
+| chore | Maintenance, tech debt |
+
+## Important Rules
+
+1. **Always use `--json`** for programmatic parsing
+2. **Always check `chisel ready`** before starting work
+3. **Always update status** when starting (`in_progress`) or finishing (`close`)
+4. **Always include `--reason`** when closing tasks
+5. **Decompose large tasks** (>8 points) into subtasks
+6. **Add dependencies** when tasks must be done in order
